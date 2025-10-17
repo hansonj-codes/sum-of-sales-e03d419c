@@ -1,6 +1,6 @@
 # Sales Summary 374959384
 
-This is a single-page website suitable for deployment on GitHub Pages. It reads data.csv (included in the repository attachments), sums the `sales` column, and displays the total on the page. The page loads Bootstrap 5 from jsDelivr.
+This is a single-page website suitable for deployment on GitHub Pages. It reads data.csv (included in the repository attachments), sums the `sales` column, displays the total on the page, and lists aggregated sales by product in a Bootstrap table.
 
 Setup & Deployment
 - Push this repository to GitHub.
@@ -9,11 +9,9 @@ Setup & Deployment
 
 Usage
 - The page automatically fetches `data.csv` on load and displays the summed sales value in the `#total-sales` element.
+- The `#product-sales` table lists each product with its total sales, and the table footer mirrors the summed total.
 - Click "Reload" to re-fetch and re-calculate.
 
 Notes
-- The CSV parser assumes a simple comma-separated file with a header row containing a `sales` column.
+- The CSV parser assumes a simple comma-separated file with a header row containing `product` and `sales` columns.
 - Bootstrap CSS and JS are loaded from jsDelivr.
-
-Commit
-See the commit_message file for the commit message included with this change.

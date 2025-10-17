@@ -9,8 +9,10 @@
   <style>
     /* Small custom styling for the page */
     body { padding-top: 4rem; background-color: #f8f9fa; }
-    .card { max-width: 720px; margin: 0 auto; }
+    .card { max-width: 900px; margin: 0 auto; }
     .monospace { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Courier New", monospace; }
+    /* ensure table wraps nicely on small screens */
+    .table-responsive { margin-top: 1rem; }
   </style>
 </head>
 <body>
@@ -32,6 +34,29 @@
         <div>
           <button id="reload-btn" class="btn btn-outline-secondary">Reload</button>
         </div>
+
+        <!-- New product sales table -->
+        <div class="table-responsive">
+          <table id="product-sales" class="table table-striped table-bordered mt-3">
+            <caption class="text-muted">Sales aggregated by product</caption>
+            <thead class="table-light">
+              <tr>
+                <th scope="col">Product</th>
+                <th scope="col" class="text-end">Total Sales</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- rows populated dynamically -->
+            </tbody>
+            <tfoot class="table-secondary">
+              <tr>
+                <th>Total</th>
+                <th id="product-sales-foot" class="text-end monospace">0.00</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
       </div>
     </div>
     <footer class="text-center text-muted mt-4">
@@ -46,7 +71,11 @@
     // Fetch the CSV file, parse it, sum the "sales" column and display the result.
     async function fetchAndSumSales() {
       const totalEl = document.getElementById('total-sales');
+      const tableBody = document.querySelector('#product-sales tbody');
+      const tableFoot = document.getElementById('product-sales-foot');
       totalEl.textContent = 'Loading…';
+      tableBody.innerHTML = ''; // clear previous
+      tableFoot.textContent = '0.00';
       try {
         const resp = await fetch('data.csv', {cache: 'no-store'});
         if (!resp.ok) throw new Error('Failed to fetch data.csv: ' + resp.status);
@@ -60,26 +89,55 @@
         }
         const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
         const salesIdx = headers.indexOf('sales');
+        const productIdx = headers.indexOf('product');
         if (salesIdx === -1) throw new Error('sales column not found in CSV');
+        if (productIdx === -1) throw new Error('product column not found in CSV');
 
         let total = 0;
+        const productMap = new Map();
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i].trim();
           if (!line) continue;
           // Respect comma inside quoted fields minimally by not supporting them (dataset expected simple).
           const cols = line.split(',');
-          const raw = cols[salesIdx] ? cols[salesIdx].trim() : '';
-          if (raw === '') continue;
-          const value = parseFloat(raw);
-          if (Number.isFinite(value)) total += value;
-          // If parse fails, skip that row (robustness).
+          // If row has fewer columns than header, skip
+          if (cols.length <= Math.max(salesIdx, productIdx)) continue;
+          const rawSales = cols[salesIdx] ? cols[salesIdx].trim() : '';
+          const rawProduct = cols[productIdx] ? cols[productIdx].trim() : '';
+          if (rawSales === '') continue;
+          const value = parseFloat(rawSales);
+          if (!Number.isFinite(value)) continue;
+          total += value;
+          const key = rawProduct || 'Unknown';
+          productMap.set(key, (productMap.get(key) || 0) + value);
+        }
+
+        // Populate product-sales table
+        // Sort products alphabetically for stable output
+        const entries = Array.from(productMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+        let computedFoot = 0;
+        for (const [product, sum] of entries) {
+          computedFoot += sum;
+          const tr = document.createElement('tr');
+          const tdProd = document.createElement('td');
+          tdProd.textContent = product;
+          const tdSum = document.createElement('td');
+          tdSum.textContent = sum.toFixed(2);
+          tdSum.className = 'text-end monospace';
+          tr.appendChild(tdProd);
+          tr.appendChild(tdSum);
+          tableBody.appendChild(tr);
         }
 
         // Format to two decimals
         totalEl.textContent = total.toFixed(2);
+        // Keep product-sales footer accurate after render; use computedFoot to avoid rounding mismatch
+        tableFoot.textContent = computedFoot.toFixed(2);
       } catch (err) {
         console.error(err);
         totalEl.textContent = 'Error';
+        tableBody.innerHTML = '<tr><td colspan="2">Error loading data</td></tr>';
+        tableFoot.textContent = 'Error';
       }
     }
 
